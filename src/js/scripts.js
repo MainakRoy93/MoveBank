@@ -10,6 +10,7 @@ import atmoshereVertexShader from '../shaders/vertex/atmosphereVertex.glsl'
 import atmoshereFragmentShader from '../shaders/fragment/atmosphereFragment.glsl' 
 import camera_properties from '../utils/camera_properties.json'
 import points from '../utils/points.json'
+import endPointCurves from '../utils/endPointCurves.json'
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 
 // console.log(atmoshereFragmentShader);
@@ -60,9 +61,6 @@ pointLight.position.set(5,0,20)
 
 const atmosphere = new THREE.Mesh(
     new THREE.SphereGeometry(5,250,250),
-    // new THREE.MeshBasicMaterial({
-    //     map : new THREE.TextureLoader().load(require('../img/8081_earthmap10k.jpg'))
-    // })
     new THREE.ShaderMaterial({
         vertexShader : atmoshereVertexShader,
         fragmentShader :  atmoshereFragmentShader,
@@ -72,77 +70,95 @@ const atmosphere = new THREE.Mesh(
 )
 atmosphere.scale.set(1.4,1.4,1.4)
 
-// const sphere = new THREE.Mesh(
-//     new THREE.SphereGeometry(5,250,250),
-//     // new THREE.MeshBasicMaterial({
-//     //     map : new THREE.TextureLoader().load(require('../img/8081_earthmap10k.jpg'))
-//     // })
-//     new THREE.ShaderMaterial({
-//         vertexShader,
-//         fragmentShader,
-//         uniforms :{
-//             globeTexture : {
-//                 value : new THREE.TextureLoader().load(require('../img/digitalearth_2.jpeg'))
-//             }
-//         }
-//     })
-// )
-
-const curve = new THREE.CubicBezierCurve3(
-	new THREE.Vector3(0.848886524067191, 4.336771039662556, 2.339189735528369),
-	new THREE.Vector3(0.984038572519382,  4.4268565429338675, 2.9316563980244386),
-	new THREE.Vector3(1.0400099003236967, 3.8107425376980193,  3.6819316558849327),
-	new THREE.Vector3(0.9542093659024761,  3.20031671570197, 3.7212171940404866 )
-);
-
-//Using Tube Geom
-const curveTubeGeometry = new THREE.TubeGeometry( curve, 40, 0.02, 8, false );
-curveTubeGeometry.setDrawRange(0, 1)
-const curveTubeMaterial = new THREE.MeshBasicMaterial( { color: 0xe278de } );
-const curveTubeMesh = new THREE.Mesh( curveTubeGeometry, curveTubeMaterial );
-curveTubeMesh.layers.enable(1);
-
-
-// Uniform for ring animations, to be used to pass the time to the fragment shader
-const ringUniform = {
-    "opacity" : {
-        type : "f", value: 0.0
-    },
-    
-
-}
-const ringGeometry = new THREE.RingGeometry( 0.02, 0.05, 32,2 );
-// const ringGeometry = new THREE.CylinderGeometry( 0.03, 0.01, 0.8, 32 , true);
-// ringGeometry.rotateX(THREE.MathUtils.degToRad(39.796543 - 90));
-// ringGeometry.rotateY(THREE.MathUtils.degToRad(-75.617867 - 90));
-ringGeometry.lookAt(new THREE.Vector3(1.1450512390829712, 3.8403800588423644, 4.4654606328485835))
-ringGeometry.translate(0.9542093659024761,  3.20031671570197, 3.7212171940404866);
-
-const ringMaterial = new THREE.MeshPhongMaterial( { color: 0xffffff, transparent: true, opacity:0.0} );
-const ringMesh = new THREE.Mesh( ringGeometry, ringMaterial );
-ringMesh.layers.enable(1);
-
-function animateCurve(){
-    var totalVertices = curveTubeGeometry.index.count;
-    var displayedVertices = curveTubeGeometry.drawRange.count;
-    if (displayedVertices >= totalVertices){
-        curveTubeGeometry.setDrawRange(0, 1);
-        // ringMesh.material.transparent = true;
-        animation = {o:1}
-        ringMesh.material.opacity = animation.o;
-        new TWEEN.Tween(animation)
-            .to({o:0}, 1200)
-            .easing(TWEEN.Easing.Cubic.In)
-            .onUpdate(()=>{
-                ringMesh.material.opacity = animation.o
-                // ringMesh.geometry.scale(animation.x, animation.y, animation.z)
-            })
-            .start()
-        displayedVertices=1;
+class CurveRing{
+    constructor(curveStart, curveEnd, controlPoint1, controlPoint2, ringLookAt, curveColor=0xe278de, ringColor=0xffffff, tag="", index=0) {
+        this.curveStart = curveStart
+        this.curveEnd = curveEnd
+        this.controlPoint1 = controlPoint1
+        this.controlPoint2 = controlPoint2
+        this.ringLookAt = ringLookAt
+        this.curveColor = curveColor
+        this.ringColor = ringColor
+        this.tubeRadius = 0.02
+        this.tag=tag
+        this.index = index
+        this.createCurve()
+        this.createTube()
+        this.createRing()
     }
-    curveTubeGeometry.setDrawRange(0, displayedVertices+15);
-    
+
+    createCurve(){
+        this.curveObj = new THREE.CubicBezierCurve3(
+            new THREE.Vector3(this.curveStart.x, this.curveStart.y, this.curveStart.z),
+            new THREE.Vector3(this.controlPoint1.x, this.controlPoint1.y, this.controlPoint1.z),
+            new THREE.Vector3(this.controlPoint2.x, this.controlPoint2.y, this.controlPoint2.z),
+            new THREE.Vector3(this.curveEnd.x, this.curveEnd.y, this.curveEnd.z)
+        )
+    }
+
+    createTube(){
+        this.tubeGeometry = new THREE.TubeGeometry(this.curveObj, 128, this.tubeRadius, 8, true)
+        this.tubeGeometry.setDrawRange(0,0)
+        this.tubeMaterial = new THREE.MeshBasicMaterial( { color: this.curveColor } )
+        this.curveTube = new THREE.Mesh( this.tubeGeometry, this.tubeMaterial )
+        this.curveTube.layers.enable(1)
+        this.totalVertices = this.tubeGeometry.index.count
+    }
+
+    createRing(){
+         this.ringGeometry = new THREE.RingGeometry( this.tubeRadius, this.tubeRadius + 0.03, 32,2 )
+         this.ringGeometry.lookAt(new THREE.Vector3(this.ringLookAt.x, this.ringLookAt.y, this.ringLookAt.z))
+         this.ringGeometry.translate(this.curveEnd.x, this.curveEnd.y, this.curveEnd.z)
+         this.ringMaterial = new THREE.MeshPhongMaterial({ 
+            color: this.ringColor, 
+            transparent: true, 
+            opacity:0.0,
+            blending:THREE.AdditiveBlending, 
+            side: THREE.BackSide
+        })
+        this.ring = new THREE.Mesh( this.ringGeometry, this.ringMaterial )
+    }
+
+    addToScene(scene){
+        scene.add(this.curveTube)
+        scene.add(this.ring)
+    }
+
+    rotate(rotationAmount){
+        this.ring.rotation.y-= rotationAmount
+        this.curveTube.rotation.y -= rotationAmount
+    }
+
+    animate(){
+        this.displayedVertices = this.tubeGeometry.drawRange.count;
+        if (this.displayedVertices >= this.totalVertices){
+            this.animation = {o:1}
+            this.ring.material.opacity = this.animation.o;
+            new TWEEN.Tween(this.animation)
+                .to({o:0}, 1200)
+                .easing(TWEEN.Easing.Cubic.In)
+                .onUpdate(()=>{
+                    this.ring.material.side = THREE.FrontSide
+                    this.ring.material.opacity = this.animation.o
+                })
+                .start()
+                .onComplete(()=>{
+                    this.ring.material.side = THREE.BackSide
+                })
+            this.displayedVertices=1;
+        }
+        this.tubeGeometry.setDrawRange(0, this.displayedVertices+24);
+    }
 }
+
+const canadianGeeseCurve0 = new CurveRing(
+    endPointCurves.canadianGeese["0"].curveStart,
+    endPointCurves.canadianGeese["0"].curveEnd,
+    endPointCurves.canadianGeese["0"].controlPoint1,
+    endPointCurves.canadianGeese["0"].controlPoint2,
+    endPointCurves.canadianGeese["0"].ringLookAt
+)
+
 
 const e =  new THREE.Object3D;
 i = [];
@@ -160,9 +176,9 @@ const dot = new THREE.CircleGeometry(0.008, 5),
 			  color: 3818644,
             //   color: 0x8561ba,
 			  metalness: 0,
-			  roughness: .9,
+			  roughness: .0,
 			  transparent: !0,
-			  alphaTest: .02
+			  alphaTest: .02,
 		  });
 const o = new THREE.InstancedMesh(dot, dot_mat, i.length);
 o.layers.enable(1);
@@ -195,8 +211,9 @@ scene.add(o);
 scene.add(atmosphere)
 scene.add(ambientLight)
 // scene.add(pointLight)
-scene.add(curveTubeMesh);
-scene.add(ringMesh);
+canadianGeeseCurve0.addToScene(scene);
+// scene.add(curveTubeMesh);
+// scene.add(ringMesh);
 
 const orbit =  new OrbitControls(camera, renderer.domElement)
 orbit.minDistance = camera_properties.minDistance
@@ -235,13 +252,13 @@ function animate() {
     
     camera.layers.set(1);
     composer.render();
-    digital_mesh.rotation.y -= 0.0015
-    curveTubeMesh.rotation.y -= 0.0015
-    ringMesh.rotation.y -= 0.0015
-    o.rotation.y -= 0.0015
+    // digital_mesh.rotation.y -= 0.0015
+    // curveTubeMesh.rotation.y -= 0.0015
+    // ringMesh.rotation.y -= 0.0015
+    // o.rotation.y -= 0.0015
     renderer.clearDepth();
     camera.layers.set(0);
-    animateCurve();
+    canadianGeeseCurve0.animate();
     
     orbit.update()
 	renderer.render( scene, camera );
