@@ -13,8 +13,8 @@ import points from '../utils/points.json'
 import endPointCurves from '../utils/endPointCurves.json'
 import geeseDailyPath from '../utils/geeseDailyPath.json'
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
-
 import { Loader } from 'three/src/loaders/Loader';
+import { Bezier } from '../utils/bezierCurve.js'
 
 // console.log(atmoshereFragmentShader);
 const scene = new THREE.Scene();
@@ -25,6 +25,8 @@ const camera = new THREE.PerspectiveCamera(
     1000
 );
 camera.layers.enable(1);
+
+
 
 const renderer = new THREE.WebGL1Renderer({
     "antialias":true
@@ -127,6 +129,7 @@ class CurveRing{
     addToScene(scene){
         scene.add(this.curveTube)
         scene.add(this.ring)
+        // this.animate()
     }
 
     rotate(rotationAmount){
@@ -140,7 +143,6 @@ class CurveRing{
     }
 
     animate(){
-        // console.log("Animation"+this.totalVertices,  this.getAnimationTime());
         if(this.tubeGeometry.drawRange.count==0){
             this.curveTube.material.opacity = 1
             this.animation = {drawCount : 0}
@@ -168,10 +170,7 @@ class CurveRing{
                         })
                 })
             
-            }
-            
-            
-   
+        }
     }
 
 
@@ -253,10 +252,37 @@ class LocationRing{
        
    }
 
+   createCylinder(scene){
+    this.cylinderGeometry = new THREE.CylinderGeometry( 0.01, 0.01, 0.5, 4 );
+    this.rotationVector = new THREE.Vector3(this.lookAt.x, this.lookAt.y, this.lookAt.z)
+    this.cylinderGeometry.rotateX(THREE.MathUtils.degToRad(19.0760 - 90));
+    this.cylinderGeometry.rotateY(THREE.MathUtils.degToRad(72.8777 - 90));
+    this.cylinderGeometry.translate(this.location.x, this.location.y, this.location.z)
+    this.cylinderGeometryWireframe = new THREE.WireframeGeometry( this.cylinderGeometry );
+    this.line = new THREE.LineSegments( this.cylinderGeometryWireframe );
+    // this.lineMaterial = new THREE.MeshPhongMaterial({ 
+    //     color: this.ringColor, 
+    //     transparent: true, 
+    //     opacity:1,
+    //  //    blending:THREE.AdditiveBlending, 
+    //  //    side: THREE.BackSide
+    // })
+
+    // this.lineMesh = new THREE.Mesh(this.cylinderGeometryWireframe, this.lineMaterial);
+    // // this.lineMesh.position.copy(this.rotationVector.clone().multiplyScalar(1));
+
+    // this.line.material.depthTest = false;
+    this.line.material.opacity = 0.1;
+    this.line.material.transparent = true;
+    this.line.layers.enable(1);
+    scene.add( this.line );
+   }
+
    
 
    addToScene(scene){
     scene.add(this.ring)
+    // this.createCylinder(scene)
     this.animate(scene)
     // this.createSVG(scene)
    }
@@ -267,8 +293,8 @@ class LocationRing{
         let startOpacity = 1
         let animationOpacity = 0
         if(!expand){
-            animationRadius = this.innerRadius
             startRadius = this.outerRadius
+            animationRadius = this.innerRadius  
             startOpacity = 0
             animationOpacity = 1
         }
@@ -290,8 +316,26 @@ class LocationRing{
 
 const testLocationRing = new LocationRing(
     {'x': 1.3912245853713356, 'y': 1.6341102550459305, 'z': -4.515991344922185},
-    {'x': 1.6694695024456028, 'y': 1.9609323060551165, 'z': -5.419189613906621}
+    {'x': 2.504204253668404, 'y': 2.941398459082675, 'z': -8.128784420859931}
 )
+
+function animateCamera(startVector,end_points, camera){
+    let midX = (startVector.x + end_points.x)/2
+    let midY = (startVector.y + end_points.y)/2
+    let midZ = (startVector.z + end_points.z)/2
+
+    const curve = new Bezier(startVector,{x:midX, y:midY, z:midZ}, end_points )
+    let cameraAnimation = {t:0}
+    new TWEEN.Tween(cameraAnimation)
+        .to({t:1}, 4000)
+        .easing(TWEEN.Easing.Cubic.InOut)
+        .onUpdate(()=>{
+            let position = curve.get(cameraAnimation.t)
+            camera.position.set(position.x, position.y, position.z)
+        })
+        .start()
+}
+
 
 class AnimalPath{
 
@@ -419,6 +463,11 @@ orbit.maxDistance = camera_properties.maxDistance
 orbit.zoomSpeed = camera_properties.zoomSpeed
 orbit.panSpeed = camera_properties.panSpeed
 camera.position.set(0,5,6.7)
+const postionStart = camera.position.clone()
+animateCamera(postionStart,{'x': 1.8085919609827363, 'y': 2.1243433315597096, 'z': -5.87078874839884}, camera)
+
+
+
 
 
 /** COMPOSER */
