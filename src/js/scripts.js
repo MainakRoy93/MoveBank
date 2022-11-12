@@ -14,6 +14,8 @@ import endPointCurves from '../utils/endPointCurves.json'
 import geeseDailyPath from '../utils/geeseDailyPath.json'
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 
+import { Loader } from 'three/src/loaders/Loader';
+
 // console.log(atmoshereFragmentShader);
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
@@ -72,7 +74,7 @@ const atmosphere = new THREE.Mesh(
 atmosphere.scale.set(1.4,1.4,1.4)
 
 class CurveRing{
-    constructor(curveStart, curveEnd, controlPoint1, controlPoint2, ringLookAt, curveColor=0xe278de, ringColor=0xffffff, tag="", index=0) {
+    constructor(curveStart, curveEnd, controlPoint1, controlPoint2, ringLookAt, num_of_days, curveColor=0xe278de, ringColor=0xffffff, tag="", index=0) {
         this.curveStart = curveStart
         this.curveEnd = curveEnd
         this.controlPoint1 = controlPoint1
@@ -83,6 +85,8 @@ class CurveRing{
         this.tubeRadius = 0.02
         this.tag=tag
         this.index = index
+        this.num_of_days = num_of_days
+        this.animationRatio = 2
         this.createCurve()
         this.createTube()
         this.createRing()
@@ -130,26 +134,67 @@ class CurveRing{
         this.curveTube.rotation.y -= rotationAmount
     }
 
+    getAnimationTime(){
+        let months = parseInt(this.num_of_days)/30
+        return months.toFixed(2)*this.animationRatio*1000
+    }
+
     animate(){
-        this.displayedVertices = this.tubeGeometry.drawRange.count;
-        if (this.displayedVertices >= this.totalVertices){
-            this.animation = {o:1}
-            this.ring.material.opacity = this.animation.o;
+        // console.log("Animation"+this.totalVertices,  this.getAnimationTime());
+        if(this.tubeGeometry.drawRange.count==0){
+            this.curveTube.material.opacity = 1
+            this.animation = {drawCount : 0}
             new TWEEN.Tween(this.animation)
-                .to({o:0}, 1200)
-                .easing(TWEEN.Easing.Cubic.In)
+                .to({drawCount:this.totalVertices}, this.getAnimationTime())
+                .easing(TWEEN.Easing.Linear.None)
                 .onUpdate(()=>{
-                    this.ring.material.side = THREE.FrontSide
-                    this.ring.material.opacity = this.animation.o
+                    this.tubeGeometry.setDrawRange(0, Math.round(this.animation.drawCount))
                 })
                 .start()
                 .onComplete(()=>{
-                    this.ring.material.side = THREE.BackSide
+                    this.tubeGeometry.setDrawRange(0,0)
+                    this.ringAnimation = {o:1}
+                    new TWEEN.Tween(this.ringAnimation)
+                        .to({o:0}, 1200)
+                        .easing(TWEEN.Easing.Cubic.In)
+                        .onUpdate(()=>{
+                            this.ring.material.side = THREE.FrontSide
+                            this.ring.material.opacity = this.ringAnimation.o
+                            this.curveTube.material.opacity = this.ringAnimation.o
+                        })
+                        .start()
+                        .onComplete(()=>{
+                            this.ring.material.side = THREE.BackSide
+                        })
                 })
-            this.displayedVertices=1;
-        }
-        this.tubeGeometry.setDrawRange(0, this.displayedVertices+24);
+            
+            }
+            
+            
+   
     }
+
+
+    // animate(){
+    //     this.displayedVertices = this.tubeGeometry.drawRange.count;
+    //     if (this.displayedVertices >= this.totalVertices){
+    //         this.animation = {o:1}
+    //         this.ring.material.opacity = this.animation.o;
+    //         new TWEEN.Tween(this.animation)
+    //             .to({o:0}, 1200)
+    //             .easing(TWEEN.Easing.Cubic.In)
+    //             .onUpdate(()=>{
+    //                 this.ring.material.side = THREE.FrontSide
+    //                 this.ring.material.opacity = this.animation.o
+    //             })
+    //             .start()
+    //             .onComplete(()=>{
+    //                 this.ring.material.side = THREE.BackSide
+    //             })
+    //         this.displayedVertices=1;
+    //     }
+    //     this.tubeGeometry.setDrawRange(0, this.displayedVertices+24);
+    // }
 }
 
 // const canadianGeeseCurve0 = new CurveRing(
@@ -162,33 +207,38 @@ class CurveRing{
 
 var endPointBezierCurves = []
 for (var animal of Object.keys(endPointCurves)) {
-    let animalData = endPointCurves[animal]
-    for(var animalId of Object.keys(animalData)){
-        let animalIDData = animalData[animalId];
-        const endPointBezierCurve = new CurveRing(
-            animalIDData.curveStart,
-            animalIDData.curveEnd,
-            animalIDData.controlPoint1,
-            animalIDData.controlPoint2,
-            animalIDData.ringLookAt,
-            animalIDData.curveColor
-        )
-        endPointBezierCurves.push(endPointBezierCurve)
-    }
+    // if(animal=="canadianGeese"){
+        let animalData = endPointCurves[animal]
+        for(var animalId of Object.keys(animalData)){
+            let animalIDData = animalData[animalId];
+            const endPointBezierCurve = new CurveRing(
+                animalIDData.curveStart,
+                animalIDData.curveEnd,
+                animalIDData.controlPoint1,
+                animalIDData.controlPoint2,
+                animalIDData.ringLookAt,
+                animalIDData.num_of_days,
+                animalIDData.curveColor
+            )
+            endPointBezierCurves.push(endPointBezierCurve)
+        }
+    // }
+    
 }
 // console.log(endPointBezierCurves)
 
 class LocationRing{
-    constructor(location, lookAt){
+    constructor(location, lookAt, svg=""){
         this.location = location
         this.lookAt = lookAt
         this.innerRadius = 0.03
         this.ringColor = 0xffffff
-        this.outerRadius = 0.08
+        this.outerRadius = 0.06
+        this.svg = svg
         this.createRing()
     }
 
-    createRing(innerRadius = this.innerRadius, o=0.9 ){
+    createRing(innerRadius = this.innerRadius, o=1 ){
         this.ringGeometry = new THREE.RingGeometry( innerRadius, innerRadius + 0.03, 32,2 )
         this.ringGeometry.lookAt(new THREE.Vector3(this.lookAt.x, this.lookAt.y, this.lookAt.z))
         this.ringGeometry.translate(this.location.x, this.location.y, this.location.z)
@@ -203,31 +253,36 @@ class LocationRing{
        
    }
 
+   
+
    addToScene(scene){
     scene.add(this.ring)
     this.animate(scene)
+    // this.createSVG(scene)
    }
 
    animate(scene, expand=true){
         let startRadius = this.innerRadius
         let animationRadius = this.outerRadius
+        let startOpacity = 1
+        let animationOpacity = 0
         if(!expand){
             animationRadius = this.innerRadius
             startRadius = this.outerRadius
+            startOpacity = 0
+            animationOpacity = 1
         }
-        this.animation = {radius: startRadius}
+        this.animation = {radius: startRadius, opacity:startOpacity}
         new TWEEN.Tween(this.animation)
-                .to({radius:animationRadius}, 2000)
+                .to({radius:animationRadius, opacity:animationOpacity}, 1500)
                 .easing(TWEEN.Easing.Linear.None)
                 .onUpdate(()=>{
                    scene.remove(this.ring)
-                   this.createRing(this.animation.radius)
+                   this.createRing(this.animation.radius, this.animation.opacity)
                    scene.add(this.ring)
                 })
                 .start()
                 .onComplete(()=>{
-                   scene.remove(this.ring)
-                   this.createRing()
                    this.animate(scene,!expand)
                 })
    }
@@ -237,10 +292,6 @@ const testLocationRing = new LocationRing(
     {'x': 1.3912245853713356, 'y': 1.6341102550459305, 'z': -4.515991344922185},
     {'x': 1.6694695024456028, 'y': 1.9609323060551165, 'z': -5.419189613906621}
 )
-
-console.log(testLocationRing)
-
-
 
 class AnimalPath{
 
