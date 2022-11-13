@@ -1,4 +1,4 @@
-import * as THREE from 'three';
+// import * as THREE from 'three';
 const TWEEN = require('@tweenjs/tween.js')
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
@@ -16,6 +16,9 @@ import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { Loader } from 'three/src/loaders/Loader';
 import { Bezier } from '../utils/bezierCurve.js'
 import { getCoordinates, getBezierMidPointCoordinates } from '../utils/getCoordinates.js'
+
+// import { THREEx.DomEvents } from '../utils/domEvents.js'
+
 
 // console.log(atmoshereFragmentShader);
 const scene = new THREE.Scene();
@@ -44,7 +47,10 @@ document.body.appendChild(renderer.domElement);
     // specularMap: new THREE.TextureLoader().load(require('../img/8081_earthspec10k.jpg')),
     // bumpScale:1,
 // })
-
+// var THREE = require('three') 
+// console.log(THREEx.DomEvents);
+// // initializeDomEvents(THREE, THREEx)
+const domEvents	= new THREEx.DomEvents(camera, renderer.domElement)
 const digital_material = new THREE.MeshPhysicalMaterial (
     { 
         color:0x000000, 
@@ -229,6 +235,8 @@ for (var animal of Object.keys(endPointCurves)) {
 
 class LocationRing{
     constructor(lat,lon){
+        this.lat = lat
+        this.lon = lon
         this.location = getCoordinates(lat, lon, 5)
         this.lookAt = getCoordinates(lat, lon, 6.5)
         this.innerRadius = 0.03
@@ -236,6 +244,7 @@ class LocationRing{
         this.outerRadius = 0.06
         // this.svg = svg
         this.createRing()
+        this.clickEvent()
     }
 
     createRing(innerRadius = this.innerRadius, o=1 ){
@@ -288,6 +297,13 @@ class LocationRing{
     // this.createSVG(scene)
    }
 
+   clickEvent(){
+    domEvents.addEventListener(this.ring, 'click', function(event){
+        const postionStart = camera.position.clone()
+        animateCamera(postionStart,19.0760, 72.8777, camera)
+    }, false)
+   }
+
    animate(scene, expand=true){
         let startRadius = this.innerRadius
         let animationRadius = this.outerRadius
@@ -318,9 +334,8 @@ class LocationRing{
 const testLocationRing = new LocationRing(19.0760, 72.8777)
 
 function animateCamera(startVector,lat, lon, camera){
-    let end_points = getCoordinates(lat, lon, 6.5)
     let control = getBezierMidPointCoordinates(startVector, lat, lon)
-    const curve = new Bezier(startVector,{x:control.x, y:control.y, z:control.z}, end_points )
+    const curve = new Bezier(startVector,{x:control.x, y:control.y, z:control.z}, getCoordinates(lat, lon, 6.5) )
     let cameraAnimation = {t:0}
     new TWEEN.Tween(cameraAnimation)
         .to({t:1}, 4000)
@@ -459,8 +474,7 @@ orbit.maxDistance = camera_properties.maxDistance
 orbit.zoomSpeed = camera_properties.zoomSpeed
 orbit.panSpeed = camera_properties.panSpeed
 camera.position.set(0,5,6.7)
-const postionStart = camera.position.clone()
-animateCamera(postionStart,19.0760, 72.8777, camera)
+
 
 
 
