@@ -15,6 +15,7 @@ import geeseDailyPath from '../utils/geeseDailyPath.json'
 import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
 import { Loader } from 'three/src/loaders/Loader';
 import { Bezier } from '../utils/bezierCurve.js'
+import { getCoordinates, getBezierMidPointCoordinates } from '../utils/getCoordinates.js'
 
 // console.log(atmoshereFragmentShader);
 const scene = new THREE.Scene();
@@ -227,13 +228,13 @@ for (var animal of Object.keys(endPointCurves)) {
 // console.log(endPointBezierCurves)
 
 class LocationRing{
-    constructor(location, lookAt, svg=""){
-        this.location = location
-        this.lookAt = lookAt
+    constructor(lat,lon){
+        this.location = getCoordinates(lat, lon, 5)
+        this.lookAt = getCoordinates(lat, lon, 6.5)
         this.innerRadius = 0.03
         this.ringColor = 0xffffff
         this.outerRadius = 0.06
-        this.svg = svg
+        // this.svg = svg
         this.createRing()
     }
 
@@ -314,17 +315,12 @@ class LocationRing{
    }
 }
 
-const testLocationRing = new LocationRing(
-    {'x': 1.3912245853713356, 'y': 1.6341102550459305, 'z': -4.515991344922185},
-    {'x': 2.504204253668404, 'y': 2.941398459082675, 'z': -8.128784420859931}
-)
+const testLocationRing = new LocationRing(19.0760, 72.8777)
 
-function animateCamera(startVector,end_points, camera){
-    let midX = (startVector.x + end_points.x)/2
-    let midY = (startVector.y + end_points.y)/2
-    let midZ = (startVector.z + end_points.z)/2
-
-    const curve = new Bezier(startVector,{x:midX, y:midY, z:midZ}, end_points )
+function animateCamera(startVector,lat, lon, camera){
+    let end_points = getCoordinates(lat, lon, 6.5)
+    let control = getBezierMidPointCoordinates(startVector, lat, lon)
+    const curve = new Bezier(startVector,{x:control.x, y:control.y, z:control.z}, end_points )
     let cameraAnimation = {t:0}
     new TWEEN.Tween(cameraAnimation)
         .to({t:1}, 4000)
@@ -464,7 +460,7 @@ orbit.zoomSpeed = camera_properties.zoomSpeed
 orbit.panSpeed = camera_properties.panSpeed
 camera.position.set(0,5,6.7)
 const postionStart = camera.position.clone()
-animateCamera(postionStart,{'x': 1.8085919609827363, 'y': 2.1243433315597096, 'z': -5.87078874839884}, camera)
+animateCamera(postionStart,19.0760, 72.8777, camera)
 
 
 
