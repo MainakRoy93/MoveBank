@@ -1,30 +1,28 @@
-// import * as THREE from 'three';
-const TWEEN = require('@tweenjs/tween.js')
+import * as THREE from 'three';
+import * as TWEEN from '@tweenjs/tween.js';
 import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js' 
-import vertexShader from '../shaders/vertex/globeVertex.glsl'
-import fragmentShader from '../shaders/fragment/globeFragment.glsl'
-import atmoshereVertexShader from '../shaders/vertex/atmosphereVertex.glsl'
-import atmoshereFragmentShader from '../shaders/fragment/atmosphereFragment.glsl' 
+import vertexShader from '../shaders/vertex/globeVertex.glsl?raw'
+import fragmentShader from '../shaders/fragment/globeFragment.glsl?raw'
+import atmoshereVertexShader from '../shaders/vertex/atmosphereVertex.glsl?raw'
+import atmoshereFragmentShader from '../shaders/fragment/atmosphereFragment.glsl?raw' 
 import camera_properties from '../utils/camera_properties.json'
 import points from '../utils/points.json'
 import endPointCurves from '../utils/endPointCurves.json'
-import geeseDailyPath from '../utils/geeseDailyPath.json'
-import { MeshLine, MeshLineMaterial, MeshLineRaycast } from 'three.meshline';
-import { Loader } from 'three/src/loaders/Loader';
+import { DomEvents } from '../utils/domEvents.js'
 import { Bezier } from '../utils/bezierCurve.js'
 import { getCoordinates, getBezierMidPointCoordinates } from '../utils/getCoordinates.js'
 
 // import { THREEx.DomEvents } from '../utils/domEvents.js'
 
 
-// console.log(atmoshereFragmentShader);
+export function mountMoveBankGlobe(container) {
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(
     75,
-    window.innerWidth/window.innerHeight,
+    container.clientWidth/container.clientHeight,
     0.1,
     1000
 );
@@ -37,9 +35,9 @@ const renderer = new THREE.WebGL1Renderer({
 });
 
 
-renderer.setSize(window.innerWidth, window.innerHeight)
+renderer.setSize(container.clientWidth, container.clientHeight)
 renderer.setPixelRatio(window.devicePixelRatio);
-document.body.appendChild(renderer.domElement);
+container.appendChild(renderer.domElement);
 
 // const digital_material = new THREE.MeshPhongMaterial({
     // map: new THREE.TextureLoader().load(require('../img/digitalearth_4.jpg')),
@@ -50,7 +48,7 @@ document.body.appendChild(renderer.domElement);
 // var THREE = require('three') 
 // console.log(THREEx.DomEvents);
 // // initializeDomEvents(THREE, THREEx)
-const domEvents	= new THREEx.DomEvents(camera, renderer.domElement)
+const domEvents	= new DomEvents(camera, renderer.domElement)
 const digital_material = new THREE.MeshPhysicalMaterial (
     { 
         color:0x000000, 
@@ -408,8 +406,8 @@ class AnimalPath{
 
 // const geesePath = new AnimalPath(geeseDailyPath, 0xe278de)
 
-const e =  new THREE.Object3D;
-i = [];
+const e =  new THREE.Object3D();
+const i = [];
 Object.entries(points).forEach(
     ([key, data]) =>{
         e.position.set(data.position.x, data.position.y, data.position.z);
@@ -482,22 +480,35 @@ camera.position.set(0,5,6.7)
 
 /** COMPOSER */
 
-renderScene = new RenderPass( scene, camera )
-bloomPass = new UnrealBloomPass( new THREE.Vector2( window.innerWidth, window.innerHeight ), 1.5, 0.4, 0.85 )
+const renderScene = new RenderPass( scene, camera )
+const bloomPass = new UnrealBloomPass( new THREE.Vector2( container.clientWidth, container.clientHeight ), 1.5, 0.4, 0.85 )
 bloomPass.threshold = 0.05
 bloomPass.strength = 4
 bloomPass.radius = 0.3
 bloomPass.renderToScreen = true
-composer = new EffectComposer( renderer )
-composer.setSize( window.innerWidth, window.innerHeight )
+const composer = new EffectComposer( renderer )
+composer.setSize( container.clientWidth, container.clientHeight )
 	
 composer.addPass( renderScene )
 /* composer.addPass( effectFXAA ) */
 composer.addPass( bloomPass )
 
+let animationFrameId;
+
+function resizeRenderer() {
+    const width = container.clientWidth || window.innerWidth;
+    const height = container.clientHeight || window.innerHeight;
+
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+    composer.setSize(width, height);
+    bloomPass.setSize(width, height);
+}
+
 function animate() {
 
-	requestAnimationFrame( animate );
+	animationFrameId = requestAnimationFrame( animate );
       
     renderer.autoClear = false;
     renderer.clear();
@@ -522,7 +533,15 @@ function animate() {
 }
 animate();
 
+window.addEventListener('resize', resizeRenderer);
 
-
-
-
+return () => {
+    window.removeEventListener('resize', resizeRenderer);
+    cancelAnimationFrame(animationFrameId);
+    TWEEN.removeAll();
+    domEvents.destroy();
+    orbit.dispose();
+    renderer.dispose();
+    renderer.domElement.remove();
+};
+}

@@ -1,12 +1,18 @@
 {
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
   "dependencies": {
     "@tweenjs/tween.js": "^18.6.4",
-    "parcel": "^2.7.0",
-    "three": "^0.144.0",
-    "three.meshline": "^1.4.0"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "three": "^0.144.0"
   },
   "devDependencies": {
-    "@parcel/transformer-glsl": "^2.7.0",
-    "process": "^0.11.10"
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.0"
   }
 }
