@@ -6,6 +6,7 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { DomEvents } from '../utils/domEvents.js';
+import { AssetLoader } from './assets/AssetLoader';
 import { LayerManager } from './layers/LayerManager';
 import { resolveEarthProfile, type ResolvedEarthProfile } from './registry/resolveProfile';
 import type { GlobeSceneContext, ManagedLayerState } from './layers/types';
@@ -14,6 +15,7 @@ import type {
   ControlConfig,
   EarthProfile,
   EarthQuality,
+  LayerSelectionOverrides,
   PostprocessingConfig,
 } from './registry/types';
 
@@ -43,9 +45,11 @@ export interface GlobeSceneHandle {
 export interface GlobeSceneProps {
   profileId?: string;
   quality?: EarthQuality;
+  layerOverrides?: LayerSelectionOverrides;
   className?: string;
   onReady?: (handle: GlobeSceneHandle) => void;
   onError?: (error: Error) => void;
+  onLayerStatesChange?: (layers: ManagedLayerState[]) => void;
 }
 
 type GlobeContainer = HTMLElement & {
@@ -64,6 +68,7 @@ class GlobeSceneController {
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGL1Renderer;
   private domEvents: DomEventsInstance;
+  private assetLoader: AssetLoader;
   private controls: OrbitControls;
   private composer: EffectComposer;
   private bloomPass: UnrealBloomPass;
@@ -75,10 +80,12 @@ class GlobeSceneController {
     private container: GlobeContainer,
     private resolvedProfile: ResolvedEarthProfile,
     private onError?: (error: Error) => void,
+    private onLayerStatesChange?: (layers: ManagedLayerState[]) => void,
   ) {
     this.camera = this.createCamera(resolvedProfile.profile.defaultCamera);
     this.renderer = this.createRenderer();
     this.domEvents = new DomEvents(this.camera, this.renderer.domElement);
+    this.assetLoader = new AssetLoader();
     this.controls = this.createControls(resolvedProfile.profile.controls);
     const composerParts = this.createComposer(resolvedProfile.profile.postprocessing);
     this.composer = composerParts.composer;
@@ -95,6 +102,7 @@ class GlobeSceneController {
       scene: this.scene,
       camera: this.camera,
       renderer: this.renderer,
+      assetLoader: this.assetLoader,
       domEvents: this.domEvents,
       container: this.container,
       signal: this.abortController.signal,
@@ -104,6 +112,11 @@ class GlobeSceneController {
       context: this.context,
       layers: resolvedProfile.layers,
       onError: (error) => this.onError?.(error),
+      onStateChange: (layers) => {
+        if (!this.destroyed) {
+          this.onLayerStatesChange?.(layers);
+        }
+      },
     });
 
     this.container.__globeController = this;
@@ -232,6 +245,7 @@ class GlobeSceneController {
     }
     TWEEN.removeAll();
     this.layerManager.dispose();
+    this.assetLoader.dispose();
     this.domEvents.destroy();
     this.controls.dispose();
     this.renderer.dispose();
@@ -246,16 +260,20 @@ class GlobeSceneController {
 export function GlobeScene({
   profileId = 'retro-earth',
   quality = 'medium',
+  layerOverrides = {},
   className = 'globeViewport',
   onReady,
   onError,
+  onLayerStatesChange,
 }: GlobeSceneProps) {
   const globeRef = useRef<HTMLElement | null>(null);
   const onReadyRef = useRef(onReady);
   const onErrorRef = useRef(onError);
+  const onLayerStatesChangeRef = useRef(onLayerStatesChange);
 
   onReadyRef.current = onReady;
   onErrorRef.current = onError;
+  onLayerStatesChangeRef.current = onLayerStatesChange;
 
   useEffect(() => {
     if (!globeRef.current) return undefined;
@@ -263,7 +281,7 @@ export function GlobeScene({
     let resolvedProfile: ResolvedEarthProfile;
 
     try {
-      resolvedProfile = resolveEarthProfile(profileId, quality);
+      resolvedProfile = resolveEarthProfile(profileId, quality, layerOverrides);
     } catch (error) {
       onErrorRef.current?.(error instanceof Error ? error : new Error(String(error)));
       return undefined;
@@ -273,10 +291,11 @@ export function GlobeScene({
       globeRef.current,
       resolvedProfile,
       (error) => onErrorRef.current?.(error),
+      (layers) => onLayerStatesChangeRef.current?.(layers),
     );
 
     return controller.mount((handle) => onReadyRef.current?.(handle));
-  }, [profileId, quality]);
+  }, [profileId, quality, layerOverrides]);
 
   return <main ref={globeRef} className={className} aria-label={`${profileId} globe scene`} />;
 }

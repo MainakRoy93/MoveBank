@@ -22,6 +22,8 @@ class CurveRing {
     this.tubeRadius = 0.02;
     this.numOfDays = numOfDays;
     this.animationRatio = 2;
+    this.opacity = 1;
+    this.isAnimating = false;
     this.createCurve();
     this.createTube();
     this.createRing();
@@ -39,7 +41,11 @@ class CurveRing {
   createTube() {
     this.tubeGeometry = new THREE.TubeGeometry(this.curveObj, 128, this.tubeRadius, 8, true);
     this.tubeGeometry.setDrawRange(0, 0);
-    this.tubeMaterial = new THREE.MeshBasicMaterial({ color: this.curveColor });
+    this.tubeMaterial = new THREE.MeshBasicMaterial({
+      color: this.curveColor,
+      transparent: true,
+      opacity: this.opacity,
+    });
     this.curveTube = new THREE.Mesh(this.tubeGeometry, this.tubeMaterial);
     this.curveTube.layers.enable(1);
     this.totalVertices = this.tubeGeometry.index.count;
@@ -70,9 +76,10 @@ class CurveRing {
   }
 
   animate(tween) {
-    if (this.tubeGeometry.drawRange.count !== 0) return;
+    if (this.isAnimating) return;
 
-    this.curveTube.material.opacity = 1;
+    this.isAnimating = true;
+    this.curveTube.material.opacity = this.opacity;
     this.animation = { drawCount: 0 };
     new tween.Tween(this.animation)
       .to({ drawCount: this.totalVertices }, this.getAnimationTime())
@@ -89,14 +96,21 @@ class CurveRing {
           .easing(tween.Easing.Cubic.In)
           .onUpdate(() => {
             this.ring.material.side = THREE.FrontSide;
-            this.ring.material.opacity = this.ringAnimation.opacity;
-            this.curveTube.material.opacity = this.ringAnimation.opacity;
+            this.ring.material.opacity = this.ringAnimation.opacity * this.opacity;
+            this.curveTube.material.opacity = this.ringAnimation.opacity * this.opacity;
           })
           .start()
           .onComplete(() => {
             this.ring.material.side = THREE.BackSide;
+            this.isAnimating = false;
           });
       });
+  }
+
+  setOpacity(opacity) {
+    this.opacity = opacity;
+    this.curveTube.material.opacity = opacity;
+    this.ring.material.opacity = Math.min(this.ring.material.opacity, opacity);
   }
 
   dispose(scene) {
@@ -112,7 +126,12 @@ class CurveRing {
 export class ArcLayer {
   id = 'migration-arcs';
 
-  constructor({ id = 'migration-arcs', endPointCurves, source, opacity = 1 }) {
+  constructor({
+    id = 'migration-arcs',
+    endPointCurves,
+    source,
+    opacity = 1,
+  }) {
     this.id = id;
     this.endPointCurves = endPointCurves;
     this.source = source;
@@ -143,8 +162,9 @@ export class ArcLayer {
           data.ringLookAt,
           data.num_of_days,
           data.curveColor,
+          data.ringColor,
         );
-        curve.curveTube.material.opacity = this.opacity;
+        curve.setOpacity(this.opacity);
         curve.addToScene(scene);
         this.curves.push(curve);
         count += 1;
@@ -173,8 +193,7 @@ export class ArcLayer {
   setOpacity(opacity) {
     this.opacity = opacity;
     this.curves.forEach((curve) => {
-      curve.curveTube.material.opacity = opacity;
-      curve.ring.material.opacity = Math.min(curve.ring.material.opacity, opacity);
+      curve.setOpacity(opacity);
     });
   }
 

@@ -32,7 +32,17 @@ The project is moving from a one-off migration globe toward a configurable, sour
 
 - `retro-earth` is the default profile and preserves the current dark point-cloud Earth look.
 - `minimal-earth-test` is a second profile used to verify that profile manifests can change the rendered Earth identity.
+- `natural-earth-test` verifies manifest-driven raster texture loading.
+
+## Developer Layer URLs
+
+The app supports query parameters for exercising layer selection without building UI yet:
+
+- `?profile=natural-earth-test` switches profile.
+- `?layers=retro-surface,retro-points` explicitly selects visible layers.
+- `?hide=retro-points` hides selected/default layers.
+- `?opacity=retro-points:0.25` applies manifest-time opacity overrides.
 
 ## Next Implementation Step
 
-The next code slice should implement the `LayerManager` boundary described in [docs/architecture/layer-manager.md](./docs/architecture/layer-manager.md).
+The next code slice should continue from the `LayerManager` boundary described in [docs/architecture/layer-manager.md](./docs/architecture/layer-manager.md).

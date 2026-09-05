@@ -1,4 +1,5 @@
 import cameraProperties from '../../utils/camera_properties.json';
+import earthmap1kUrl from '../../img/earthmap1k.jpg';
 import type {
   Attribution,
   EarthAsset,
@@ -41,6 +42,19 @@ export const assets: Record<string, EarthAsset> = {
     version: 'local-2026-06-27',
     processingNotes: 'Registered for future use, but hidden from default Earth profiles.',
   },
+  'earthmap-1k-local': {
+    id: 'earthmap-1k-local',
+    name: 'Earth map 1k',
+    type: 'day-texture',
+    format: 'jpg',
+    url: earthmap1kUrl,
+    resolution: '1000x500',
+    sourceName: 'Local project asset',
+    license: 'Source pending',
+    attribution: 'Local Earth texture. Source and license metadata pending.',
+    version: 'local-2026-06-27',
+    processingNotes: 'Bundled as the first manifest-driven raster texture test.',
+  },
 };
 
 export const layers: Record<string, EarthLayerManifest> = {
@@ -77,6 +91,7 @@ export const layers: Record<string, EarthLayerManifest> = {
     attributionIds: ['local-source-pending'],
     rendererOptions: {
       source: '/globe-assets/points.txt',
+      color: '#3a4494',
     },
     performanceHints: {
       loadPriority: 1,
@@ -102,9 +117,28 @@ export const layers: Record<string, EarthLayerManifest> = {
       ambientLightIntensity: 0.85,
     },
   },
+  'natural-test-surface-raster': {
+    id: 'natural-test-surface-raster',
+    name: 'Natural test surface raster',
+    category: 'physical-surface',
+    type: 'surface-raster',
+    assetIds: ['earthmap-1k-local'],
+    defaultVisible: true,
+    opacity: 1,
+    order: 10,
+    interactionEnabled: false,
+    attributionIds: ['local-source-pending'],
+    rendererOptions: {
+      radius: 5,
+      segments: 128,
+    },
+    performanceHints: {
+      loadPriority: 1,
+    },
+  },
   'legacy-migration-arcs': {
     id: 'legacy-migration-arcs',
-    name: 'Legacy migration arcs',
+    name: 'Migration paths',
     category: 'debug',
     type: 'migration-arcs',
     assetIds: ['migration-arcs-local'],
@@ -119,7 +153,7 @@ export const layers: Record<string, EarthLayerManifest> = {
   },
   'legacy-location-ring': {
     id: 'legacy-location-ring',
-    name: 'Legacy location ring',
+    name: 'Location marker',
     category: 'debug',
     type: 'location-ring',
     assetIds: [],
@@ -198,6 +232,37 @@ export const profiles: Record<string, EarthProfile> = {
       },
       high: {
         layerIds: ['minimal-test-surface'],
+      },
+    },
+    attributionIds: ['local-source-pending'],
+  },
+  'natural-earth-test': {
+    id: 'natural-earth-test',
+    name: 'Natural Earth Test',
+    description: 'A manifest-driven textured Earth profile used to verify asset loading and raster rendering.',
+    defaultCamera: {
+      position: [0, 5, 6.7],
+    },
+    controls: cameraProperties,
+    postprocessing: {
+      bloom: {
+        threshold: 0.12,
+        strength: 0.8,
+        radius: 0.12,
+      },
+    },
+    defaultTimeMode: 'static',
+    defaultLayerIds: ['natural-test-surface-raster'],
+    availableLayerIds: ['natural-test-surface-raster'],
+    qualityProfiles: {
+      low: {
+        layerIds: ['natural-test-surface-raster'],
+      },
+      medium: {
+        layerIds: ['natural-test-surface-raster'],
+      },
+      high: {
+        layerIds: ['natural-test-surface-raster'],
       },
     },
     attributionIds: ['local-source-pending'],

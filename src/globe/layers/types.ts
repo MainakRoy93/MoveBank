@@ -1,5 +1,6 @@
 import type * as THREE from 'three';
 import type * as TWEEN from '@tweenjs/tween.js';
+import type { AssetLoader } from '../assets/AssetLoader';
 import type { EarthLayerManifest, EarthLayerType } from '../registry/types';
 
 export type LayerLifecycleStatus =
@@ -34,6 +35,7 @@ export interface GlobeSceneContext {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGL1Renderer;
+  assetLoader: AssetLoader;
   domEvents: unknown;
   container: HTMLElement;
   signal: AbortSignal;
@@ -47,6 +49,7 @@ export interface LayerRenderer {
   resize?: (size: { width: number; height: number }, context: GlobeSceneContext) => void;
   setVisible?: (visible: boolean, context: GlobeSceneContext) => void;
   setOpacity?: (opacity: number, context: GlobeSceneContext) => void;
+  setColor?: (color: string, context: GlobeSceneContext) => void;
   dispose?: (context: GlobeSceneContext) => void;
 }
 

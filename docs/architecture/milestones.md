@@ -23,15 +23,21 @@ Status: in progress.
 
 ## Milestone 3: Layer Manager
 
-Status: next code implementation.
+Status: in progress.
 
-Planned deliverables:
+Implemented so far:
 
 - LayerManager module.
 - Layer lifecycle state.
-- Generic visibility and opacity controls.
+- Manifest-keyed debug state.
+- URL-driven layer selection, hiding, and opacity overrides.
+- Hidden available layers can be mounted explicitly through layer selection.
+
+Remaining deliverables:
+
 - Cleaner profile/quality switching.
-- Layer state available for future UI and attribution display.
+- Layer state available to future UI beyond debug inspection.
+- Basic layer panel UI.
 
 The first LayerManager slice should not include a layer panel UI yet unless required for validation.
 

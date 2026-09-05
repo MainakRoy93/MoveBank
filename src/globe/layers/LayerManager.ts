@@ -18,12 +18,14 @@ export interface LayerManagerOptions {
   layers: EarthLayerManifest[];
   createRenderer?: LayerRendererFactory;
   onError?: (error: Error, layer: ManagedLayerState) => void;
+  onStateChange?: (layers: ManagedLayerState[]) => void;
 }
 
 export class LayerManager {
   private readonly context: GlobeSceneContext;
   private readonly createRenderer: LayerRendererFactory;
   private readonly onError?: (error: Error, layer: ManagedLayerState) => void;
+  private readonly onStateChange?: (layers: ManagedLayerState[]) => void;
   private readonly layers = new Map<string, ManagedLayer>();
   private disposed = false;
 
@@ -32,10 +34,12 @@ export class LayerManager {
     layers,
     createRenderer = createLayerRenderer,
     onError,
+    onStateChange,
   }: LayerManagerOptions) {
     this.context = context;
     this.createRenderer = createRenderer;
     this.onError = onError;
+    this.onStateChange = onStateChange;
 
     [...layers]
       .sort((a, b) => a.order - b.order)
@@ -75,9 +79,15 @@ export class LayerManager {
     });
   }
 
-  setLayerVisible(layerId: string, visible: boolean) {
+  async setLayerVisible(layerId: string, visible: boolean) {
     const layer = this.getManagedLayer(layerId);
     layer.state.visible = visible;
+
+    if (visible && !layer.renderer) {
+      await this.mountLayer(layer);
+      return;
+    }
+
     layer.state.status = visible ? 'mounted' : 'hidden';
     layer.renderer?.setVisible?.(visible, this.context);
     this.syncDebugState();
@@ -165,8 +175,10 @@ export class LayerManager {
   }
 
   private syncDebugState() {
+    const layerStates = this.getLayerStates();
     this.context.debug.layerManager = Object.fromEntries(
-      this.getLayerStates().map((state) => [state.id, state]),
+      layerStates.map((state) => [state.id, state]),
     );
+    this.onStateChange?.(layerStates);
   }
 }

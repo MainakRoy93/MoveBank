@@ -2,6 +2,7 @@ import { ArcLayer } from './ArcLayer.js';
 import { EarthLayer } from './EarthLayer.js';
 import { LocationRingLayer } from './LocationRingLayer.js';
 import { PointLayer } from './PointLayer.js';
+import { RasterLayerRenderer } from './RasterLayerRenderer';
 import type { EarthLayerManifest } from '../registry/types';
 import type { LayerRenderer } from './types';
 
@@ -22,6 +23,9 @@ export function createLayerRenderer(layer: EarthLayerManifest): LayerRenderer {
   switch (layer.type) {
     case 'planet-surface':
       return new PlanetSurfaceLayer(options);
+    case 'surface-raster':
+    case 'overlay-raster':
+      return new RasterLayerRenderer(layer);
     case 'surface-points':
       return new SurfacePointsLayer(options);
     case 'migration-arcs':

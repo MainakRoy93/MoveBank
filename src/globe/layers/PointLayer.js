@@ -83,6 +83,14 @@ export class PointLayer {
     }
   }
 
+  setColor(color) {
+    this.color = color;
+    if (this.material) {
+      this.material.color.set(color);
+      this.material.needsUpdate = true;
+    }
+  }
+
   setDebugStatus(context, status, extra = {}) {
     this.debugStatus = { status, ...extra };
     if (context.debug) {

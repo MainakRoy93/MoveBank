@@ -2,6 +2,8 @@ export type EarthQuality = 'low' | 'medium' | 'high';
 
 export type EarthLayerType =
   | 'planet-surface'
+  | 'surface-raster'
+  | 'overlay-raster'
   | 'surface-points'
   | 'migration-arcs'
   | 'location-ring';
@@ -40,6 +42,13 @@ export interface PostprocessingConfig {
 export interface QualityProfile {
   layerIds?: string[];
   assetIds?: string[];
+}
+
+export interface LayerSelectionOverrides {
+  layerIds?: string[];
+  hiddenLayerIds?: string[];
+  opacityByLayerId?: Record<string, number>;
+  colorByLayerId?: Record<string, string>;
 }
 
 export interface EarthProfile {
