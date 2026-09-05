@@ -4,12 +4,14 @@ import { loadJson } from '../data/loadJson.js';
 export class PointLayer {
   id = 'surface-points';
 
-  constructor({ points, source, radius = 0.008, segments = 5, color = 3818644 }) {
+  constructor({ id = 'surface-points', points, source, radius = 0.008, segments = 5, color = 3818644, opacity = 1 }) {
+    this.id = id;
     this.points = points;
     this.source = source;
     this.radius = radius;
     this.segments = segments;
     this.color = color;
+    this.opacity = opacity;
     this.disposed = false;
   }
 
@@ -28,6 +30,7 @@ export class PointLayer {
       metalness: 0,
       roughness: 0,
       transparent: true,
+      opacity: this.opacity,
       alphaTest: 0.02,
     });
     this.mesh = new THREE.InstancedMesh(this.geometry, this.material, pointCount);
@@ -64,6 +67,20 @@ export class PointLayer {
     if (this.mesh) scene.remove(this.mesh);
     this.geometry?.dispose();
     this.material?.dispose();
+  }
+
+  setVisible(visible) {
+    if (this.mesh) {
+      this.mesh.visible = visible;
+    }
+  }
+
+  setOpacity(opacity) {
+    this.opacity = opacity;
+    if (this.material) {
+      this.material.opacity = opacity;
+      this.material.needsUpdate = true;
+    }
   }
 
   setDebugStatus(context, status, extra = {}) {

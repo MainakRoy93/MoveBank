@@ -6,8 +6,9 @@ import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer
 import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { DomEvents } from '../utils/domEvents.js';
-import { createLayerRenderer, type LayerRenderer } from './layers/createLayerRenderer';
+import { LayerManager } from './layers/LayerManager';
 import { resolveEarthProfile, type ResolvedEarthProfile } from './registry/resolveProfile';
+import type { GlobeSceneContext, ManagedLayerState } from './layers/types';
 import type {
   CameraConfig,
   ControlConfig,
@@ -36,6 +37,7 @@ export interface GlobeSceneHandle {
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGL1Renderer;
+  layerStates: ManagedLayerState[];
 }
 
 export interface GlobeSceneProps {
@@ -44,21 +46,6 @@ export interface GlobeSceneProps {
   className?: string;
   onReady?: (handle: GlobeSceneHandle) => void;
   onError?: (error: Error) => void;
-}
-
-interface GlobeSceneContext {
-  THREE: typeof THREE;
-  tween: typeof TWEEN;
-  scene: THREE.Scene;
-  camera: THREE.PerspectiveCamera;
-  renderer: THREE.WebGL1Renderer;
-  domEvents: DomEventsInstance;
-  container: HTMLElement;
-  signal: AbortSignal;
-  debug: {
-    profileId: string;
-    layers: Record<string, unknown>;
-  };
 }
 
 type GlobeContainer = HTMLElement & {
@@ -81,12 +68,13 @@ class GlobeSceneController {
   private composer: EffectComposer;
   private bloomPass: UnrealBloomPass;
   private context: GlobeSceneContext;
-  private layerRenderers: LayerRenderer[];
+  private layerManager: LayerManager;
   private debug: GlobeSceneContext['debug'];
 
   constructor(
     private container: GlobeContainer,
     private resolvedProfile: ResolvedEarthProfile,
+    private onError?: (error: Error) => void,
   ) {
     this.camera = this.createCamera(resolvedProfile.profile.defaultCamera);
     this.renderer = this.createRenderer();
@@ -95,10 +83,10 @@ class GlobeSceneController {
     const composerParts = this.createComposer(resolvedProfile.profile.postprocessing);
     this.composer = composerParts.composer;
     this.bloomPass = composerParts.bloomPass;
-    this.layerRenderers = resolvedProfile.layers.map(createLayerRenderer);
     this.debug = {
       profileId: resolvedProfile.profile.id,
       layers: {},
+      layerManager: {},
     };
 
     this.context = {
@@ -112,6 +100,11 @@ class GlobeSceneController {
       signal: this.abortController.signal,
       debug: this.debug,
     };
+    this.layerManager = new LayerManager({
+      context: this.context,
+      layers: resolvedProfile.layers,
+      onError: (error) => this.onError?.(error),
+    });
 
     this.container.__globeController = this;
     (window as GlobeWindow).__moveBankGlobe = this;
@@ -119,34 +112,18 @@ class GlobeSceneController {
     this.animate = this.animate.bind(this);
   }
 
-  mount(onReady?: (handle: GlobeSceneHandle) => void, onError?: (error: Error) => void) {
+  mount(onReady?: (handle: GlobeSceneHandle) => void) {
     window.addEventListener('resize', this.resize);
     this.animate();
 
-    const layerMounts = this.layerRenderers.map((layer) => {
-      const mountResult = layer.mount?.(this.context);
-
-      return Promise.resolve(mountResult).catch((error: Error) => {
-        if (!this.destroyed && error.name !== 'AbortError') {
-          if (layer.id) {
-            this.debug.layers[layer.id] = {
-              status: 'error',
-              message: error.message,
-            };
-          }
-          console.error(`Failed to mount globe layer${layer.id ? ` "${layer.id}"` : ''}.`, error);
-          onError?.(error);
-        }
-      });
-    });
-
-    Promise.allSettled(layerMounts).then(() => {
+    this.layerManager.mount().then(() => {
       if (this.destroyed) return;
       onReady?.({
         profile: this.resolvedProfile.profile,
         scene: this.scene,
         camera: this.camera,
         renderer: this.renderer,
+        layerStates: this.layerManager.getLayerStates(),
       });
     });
 
@@ -225,7 +202,7 @@ class GlobeSceneController {
     this.renderer.setSize(width, height);
     this.composer.setSize(width, height);
     this.bloomPass.setSize(width, height);
-    this.layerRenderers.forEach((layer) => layer.resize?.({ width, height }, this.context));
+    this.layerManager.resize({ width, height });
   }
 
   private animate(time?: number) {
@@ -240,7 +217,7 @@ class GlobeSceneController {
     this.renderer.clearDepth();
     this.camera.layers.set(0);
 
-    this.layerRenderers.forEach((layer) => layer.animate?.(time, this.context));
+    this.layerManager.animate(time);
     this.controls.update();
     this.renderer.render(this.scene, this.camera);
     TWEEN.update();
@@ -254,7 +231,7 @@ class GlobeSceneController {
       cancelAnimationFrame(this.animationFrameId);
     }
     TWEEN.removeAll();
-    this.layerRenderers.forEach((layer) => layer.dispose?.(this.context));
+    this.layerManager.dispose();
     this.domEvents.destroy();
     this.controls.dispose();
     this.renderer.dispose();
@@ -292,12 +269,13 @@ export function GlobeScene({
       return undefined;
     }
 
-    const controller = new GlobeSceneController(globeRef.current, resolvedProfile);
-
-    return controller.mount(
-      (handle) => onReadyRef.current?.(handle),
+    const controller = new GlobeSceneController(
+      globeRef.current,
+      resolvedProfile,
       (error) => onErrorRef.current?.(error),
     );
+
+    return controller.mount((handle) => onReadyRef.current?.(handle));
   }, [profileId, quality]);
 
   return <main ref={globeRef} className={className} aria-label={`${profileId} globe scene`} />;

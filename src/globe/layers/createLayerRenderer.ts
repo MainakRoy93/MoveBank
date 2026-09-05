@@ -3,14 +3,7 @@ import { EarthLayer } from './EarthLayer.js';
 import { LocationRingLayer } from './LocationRingLayer.js';
 import { PointLayer } from './PointLayer.js';
 import type { EarthLayerManifest } from '../registry/types';
-
-export interface LayerRenderer {
-  id?: string;
-  mount?: (context: any) => unknown;
-  animate?: (time: number | undefined, context: any) => void;
-  resize?: (size: { width: number; height: number }, context: unknown) => void;
-  dispose?: (context: any) => void;
-}
+import type { LayerRenderer } from './types';
 
 type LegacyLayerConstructor = new (options: Record<string, unknown>) => LayerRenderer;
 

@@ -52,4 +52,19 @@ export class EarthLayer {
     this.atmosphere?.geometry.dispose();
     this.atmosphere?.material.dispose();
   }
+
+  setVisible(visible) {
+    this.objects.forEach((object) => {
+      object.visible = visible;
+    });
+  }
+
+  setOpacity(opacity) {
+    this.opacity = opacity;
+    if (this.earthMaterial) {
+      this.earthMaterial.transparent = opacity < 1;
+      this.earthMaterial.opacity = opacity;
+      this.earthMaterial.needsUpdate = true;
+    }
+  }
 }

@@ -77,17 +77,33 @@ class LocationRing {
 }
 
 export class LocationRingLayer {
-  constructor({ locations }) {
+  constructor({ id = 'location-ring', locations, opacity = 1 }) {
+    this.id = id;
     this.locations = locations;
+    this.opacity = opacity;
     this.rings = [];
   }
 
   mount(context) {
     this.rings = this.locations.map((location) => new LocationRing(location, context));
     this.rings.forEach((ring) => ring.addToScene(context.scene));
+    this.setOpacity(this.opacity);
   }
 
   dispose({ scene }) {
     this.rings.forEach((ring) => ring.dispose(scene));
+  }
+
+  setVisible(visible) {
+    this.rings.forEach((ring) => {
+      ring.ring.visible = visible;
+    });
+  }
+
+  setOpacity(opacity) {
+    this.opacity = opacity;
+    this.rings.forEach((ring) => {
+      ring.ring.material.opacity = opacity;
+    });
   }
 }

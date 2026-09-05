@@ -112,9 +112,11 @@ class CurveRing {
 export class ArcLayer {
   id = 'migration-arcs';
 
-  constructor({ endPointCurves, source }) {
+  constructor({ id = 'migration-arcs', endPointCurves, source, opacity = 1 }) {
+    this.id = id;
     this.endPointCurves = endPointCurves;
     this.source = source;
+    this.opacity = opacity;
     this.curves = [];
     this.disposed = false;
   }
@@ -142,6 +144,7 @@ export class ArcLayer {
           data.num_of_days,
           data.curveColor,
         );
+        curve.curveTube.material.opacity = this.opacity;
         curve.addToScene(scene);
         this.curves.push(curve);
         count += 1;
@@ -158,6 +161,21 @@ export class ArcLayer {
   dispose({ scene }) {
     this.disposed = true;
     this.curves.forEach((curve) => curve.dispose(scene));
+  }
+
+  setVisible(visible) {
+    this.curves.forEach((curve) => {
+      curve.curveTube.visible = visible;
+      curve.ring.visible = visible;
+    });
+  }
+
+  setOpacity(opacity) {
+    this.opacity = opacity;
+    this.curves.forEach((curve) => {
+      curve.curveTube.material.opacity = opacity;
+      curve.ring.material.opacity = Math.min(curve.ring.material.opacity, opacity);
+    });
   }
 
   setDebugStatus(context, status, extra = {}) {
